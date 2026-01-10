@@ -96,7 +96,7 @@ static failing_alloc_t g_failing_alloc;
 static void *failing_malloc(size_t size);
 static void failing_free(void *ptr);
 
-static char *read_file(const char *filename);
+[[nodiscard]] static char *read_file(const char *filename);
 const char *get_file_path(const char *filename);
 
 static int g_tests_passed;
@@ -274,8 +274,7 @@ void test_suite_2(JSON_Value *root_value) {
   TEST(dbl_eq(json_object_get_number(root_object, "negative one"), -1.0));
   TEST(dbl_eq(json_object_get_number(root_object, "hard to parse number"),
               -0.000314));
-  TEST(json_object_get_boolean(root_object, "boolean true") ==
-       JSONBooleanTrue);
+  TEST(json_object_get_boolean(root_object, "boolean true") == JSONBooleanTrue);
   TEST(json_object_get_boolean(root_object, "boolean false") ==
        JSONBooleanFalse);
   TEST(json_value_get_type(json_object_get_value(root_object, "null")) ==
@@ -501,7 +500,8 @@ void test_suite_5() {
   TEST(json_object_set_value(obj, nullptr, nullptr) == JSONFailure);
 
   TEST(json_object_dotset_string(obj, nullptr, "") == JSONFailure);
-  TEST(json_object_dotset_string(obj, "favorites.color", nullptr) == JSONFailure);
+  TEST(json_object_dotset_string(obj, "favorites.color", nullptr) ==
+       JSONFailure);
   TEST(json_object_dotset_string(obj, nullptr, nullptr) == JSONFailure);
   TEST(json_object_dotset_value(obj, nullptr, nullptr) == JSONFailure);
 
@@ -937,27 +937,30 @@ void serialization_example() {
 }
 
 static char *read_file(const char *file_path) {
-  FILE *fp = nullptr;
+  auto fp = fopen(file_path, "r");
   size_t size_to_read = 0;
   size_t size_read = 0;
-  long pos;
-  char *file_contents;
-  fp = fopen(file_path, "r");
-  if (!fp) {
+  long pos = 0;
+  char *file_contents = nullptr;
+  if (fp == nullptr) {
     assert(0);
     return nullptr;
   }
-  fseek(fp, 0L, SEEK_END);
+  if (fseek(fp, 0L, SEEK_END) != 0) {
+    fclose(fp);
+    assert(0);
+    return nullptr;
+  }
   pos = ftell(fp);
   if (pos < 0) {
     fclose(fp);
     assert(0);
     return nullptr;
   }
-  size_to_read = pos;
+  size_to_read = (size_t)pos;
   rewind(fp);
-  file_contents = (char *)malloc(sizeof(char) * (size_to_read + 1));
-  if (!file_contents) {
+  file_contents = (char *)calloc(size_to_read + 1, sizeof(char));
+  if (file_contents == nullptr) {
     fclose(fp);
     assert(0);
     return nullptr;
@@ -975,14 +978,15 @@ static char *read_file(const char *file_path) {
 }
 
 const char *get_file_path(const char *filename) {
-  static char path_buf[2048] = {0};
+  constexpr size_t path_buf_length = 2'048;
+  static char path_buf[path_buf_length] = {0};
   memset(path_buf, 0, sizeof(path_buf));
   snprintf(path_buf, sizeof path_buf, "%s/%s", g_tests_path, filename);
   return path_buf;
 }
 
 static void *counted_malloc(size_t size) {
-  void *res = malloc(size);
+  void *res = calloc(1, size);
   if (res != nullptr) {
     g_malloc_count++;
   }
@@ -1003,7 +1007,7 @@ static void *failing_malloc(size_t size) {
     g_failing_alloc.has_failed = true;
     return nullptr;
   }
-  res = malloc(size);
+  res = calloc(1, size);
   if (res != nullptr) {
     g_failing_alloc.total_count++;
     g_failing_alloc.alloc_count++;

@@ -8,6 +8,11 @@ build:
 install:
     zig build install
 
+fmt: format
+
+format:
+    clang-format -i *.c *.h
+
 # Run the main test suite (pass extra args after `--`).
 test *args:
     zig build test -- {{args}}
