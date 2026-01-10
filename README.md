@@ -81,8 +81,8 @@ void persistence_example(void) {
     JSON_Value *schema = json_parse_string("{\"name\":\"\"}");
     JSON_Value *user_data = json_parse_file("user_data.json");
     char buf[256];
-    const char *name = NULL;
-    if (user_data == NULL || json_validate(schema, user_data) != JSONSuccess) {
+    const char *name = nullptr;
+    if (user_data == nullptr || json_validate(schema, user_data) != JSONSuccess) {
         puts("Enter your name:");
         scanf("%s", buf);
         user_data = json_value_init_object();
@@ -105,7 +105,7 @@ In the following example I create a simple JSON value containing basic informati
 void serialization_example(void) {
     JSON_Value *root_value = json_value_init_object();
     JSON_Object *root_object = json_value_get_object(root_value);
-    char *serialized_string = NULL;
+    char *serialized_string = nullptr;
     json_object_set_string(root_object, "name", "John Smith");
     json_object_set_number(root_object, "age", 25);
     json_object_dotset_string(root_object, "address.city", "Cupertino");

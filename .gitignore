@@ -7,3 +7,4 @@ tests/test_2_serialized_pretty.txt
 test_hash_collisions
 build/**
 .zig-cache/
+zig-out/
