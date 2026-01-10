@@ -1,149 +1,106 @@
+# Parson
+
 ## About
-Parson is a lightweight [json](http://json.org) library written in C.
+Parson is a lightweight [JSON](http://json.org) parser/serializer for modern C23 projects. It ships as two files (`parson.c` and `parson.h`) with no external dependencies and a stable API.
 
-## Features
-* Lightweight (only 2 files)
-* Simple API
-* Addressing json values with dot notation (similar to C structs or objects in most OO languages, e.g. "objectA.objectB.value")
-* C89 compatible
-* Test suites
+## Highlights
+- Minimal footprint: drop two files into your tree or link the provided static library.
+- Dot-notation access for nested fields (`objectA.objectB.value`).
+- Comment-tolerant parsing helpers and configurable serialization (allocators, float formatting, slash escaping).
+- Deterministic, pretty or compact output.
+- Built and tested with `-std=c23 -Wall -Wextra -Wpedantic -Werror`.
 
-## Installation
-Run:
-```
-git clone https://github.com/kgabis/parson.git
-```
-and copy parson.h and parson.c to you source code tree.
+## Requirements
+- C23-capable compiler and libc.
+- [Zig](https://ziglang.org) for the build/test driver and optionally [just](https://just.systems) for command aliases.
 
-Run ```make test``` to compile and run tests.
+## Build and install
+- `just build` — compile the static library.
+- `just install` — install artifacts to `zig-out` (`zig-out/include/parson.h`, `zig-out/lib/libparson.a`).
+- `just test` — run the main test suite.
+- `just test-collisions` — stress hash table collision handling (`PARSON_FORCE_HASH_COLLISIONS`).
+- Without `just`: `zig build`, `zig build install`, `zig build test`, and `zig build test-collisions`.
 
-## Examples
-### Parsing JSON
-Here is a function, which prints basic commit info (date, sha and author) from a github repository.  
+## Using Parson
+- Copy `parson.c` and `parson.h` into your project and compile them with your own flags, or link against `zig-out/lib/libparson.a` while adding `zig-out/include` to the include path.
+- Optional configuration:
+  - `json_set_allocation_functions` to supply custom allocators.
+  - `json_set_escape_slashes`, `json_set_float_serialization_format`, or `json_set_number_serialization_function` to tune serialization.
+
+## Quick start
 ```c
-void print_commits_info(const char *username, const char *repo) {
-    JSON_Value *root_value;
-    JSON_Array *commits;
-    JSON_Object *commit;
-    size_t i;
-    
-    char curl_command[512];
-    char cleanup_command[256];
-    char output_filename[] = "commits.json";
-    
-    /* it ain't pretty, but it's not a libcurl tutorial */
-    sprintf(curl_command, 
-        "curl -s \"https://api.github.com/repos/%s/%s/commits\" > %s",
-        username, repo, output_filename);
-    sprintf(cleanup_command, "rm -f %s", output_filename);
-    system(curl_command);
-    
-    /* parsing json and validating output */
-    root_value = json_parse_file(output_filename);
-    if (json_value_get_type(root_value) != JSONArray) {
-        system(cleanup_command);
-        return;
+#include <stdio.h>
+#include "parson.h"
+
+[[nodiscard]] bool print_person() {
+    constexpr char payload[] =
+        "{\"name\":\"Ada\",\"age\":28,"
+        "\"skills\":[\"math\",\"code\"]}";
+
+    auto *value = json_parse_string(payload);
+    if (value == nullptr) {
+        return false;
     }
-    
-    /* getting array from root value and printing commit info */
-    commits = json_value_get_array(root_value);
-    printf("%-10.10s %-10.10s %s\n", "Date", "SHA", "Author");
-    for (i = 0; i < json_array_get_count(commits); i++) {
-        commit = json_array_get_object(commits, i);
-        printf("%.10s %.10s %s\n",
-               json_object_dotget_string(commit, "commit.author.date"),
-               json_object_get_string(commit, "sha"),
-               json_object_dotget_string(commit, "commit.author.name"));
+
+    auto *object = json_value_get_object(value);
+    auto *skills = json_object_get_array(object, "skills");
+    if (object == nullptr || skills == nullptr) {
+        json_value_free(value);
+        return false;
     }
-    
-    /* cleanup code */
+
+    printf("%s (%g) first skill: %s\n",
+           json_object_get_string(object, "name"),
+           json_object_get_number(object, "age"),
+           json_array_get_string(skills, 0));
+
+    json_value_free(value);
+    return true;
+}
+
+int main() {
+    return print_person() ? 0 : 1;
+}
+```
+
+### Building JSON
+```c
+#include <stdio.h>
+#include "parson.h"
+
+[[nodiscard]] char *build_profile() {
+    auto *root_value = json_value_init_object();
+    if (root_value == nullptr) {
+        return nullptr;
+    }
+
+    auto *root_object = json_value_get_object(root_value);
+    json_object_set_string(root_object, "name", "Ada Lovelace");
+    json_object_set_number(root_object, "age", 36);
+    json_object_dotset_string(root_object, "contact.email",
+                              "ada@example.com");
+    json_object_dotset_value(
+        root_object, "skills",
+        json_parse_string("[\"math\",\"analysis\",\"computing\"]"));
+
+    auto *serialized = json_serialize_to_string_pretty(root_value);
     json_value_free(root_value);
-    system(cleanup_command);
+    return serialized;
 }
 
-```
-Calling ```print_commits_info("torvalds", "linux");``` prints:  
-```
-Date       SHA        Author
-2012-10-15 dd8e8c4a2c David Rientjes
-2012-10-15 3ce9e53e78 Michal Marek
-2012-10-14 29bb4cc5e0 Randy Dunlap
-2012-10-15 325adeb55e Ralf Baechle
-2012-10-14 68687c842c Russell King
-2012-10-14 ddffeb8c4d Linus Torvalds
-...
-```
-
-### Persistence
-In this example I'm using parson to save user information to a file and then load it and validate later.
-```c
-void persistence_example(void) {
-    JSON_Value *schema = json_parse_string("{\"name\":\"\"}");
-    JSON_Value *user_data = json_parse_file("user_data.json");
-    char buf[256];
-    const char *name = nullptr;
-    if (user_data == nullptr || json_validate(schema, user_data) != JSONSuccess) {
-        puts("Enter your name:");
-        scanf("%s", buf);
-        user_data = json_value_init_object();
-        json_object_set_string(json_object(user_data), "name", buf);
-        json_serialize_to_file(user_data, "user_data.json");
+int main() {
+    auto *json = build_profile();
+    if (json != nullptr) {
+        puts(json);
+        json_free_serialized_string(json);
+        return 0;
     }
-    name = json_object_get_string(json_object(user_data), "name");
-    printf("Hello, %s.", name);
-    json_value_free(schema);
-    json_value_free(user_data);
-    return;
-}
-```
-
-### Serialization
-Creating JSON values is very simple thanks to the dot notation. 
-Object hierarchy is automatically created when addressing specific fields. 
-In the following example I create a simple JSON value containing basic information about a person.
-```c
-void serialization_example(void) {
-    JSON_Value *root_value = json_value_init_object();
-    JSON_Object *root_object = json_value_get_object(root_value);
-    char *serialized_string = nullptr;
-    json_object_set_string(root_object, "name", "John Smith");
-    json_object_set_number(root_object, "age", 25);
-    json_object_dotset_string(root_object, "address.city", "Cupertino");
-    json_object_dotset_value(root_object, "contact.emails", json_parse_string("[\"email@example.com\",\"email2@example.com\"]"));
-    serialized_string = json_serialize_to_string_pretty(root_value);
-    puts(serialized_string);
-    json_free_serialized_string(serialized_string);
-    json_value_free(root_value);
-}
-
-```
-
-Output:
-```
-{
-    "name": "John Smith",
-    "age": 25,
-    "address": {
-        "city": "Cupertino"
-    },
-    "contact": {
-        "emails": [
-            "email@example.com",
-            "email2@example.com"
-        ]
-    }
+    return 1;
 }
 ```
 
 ## Contributing
-
-I will always merge *working* bug fixes. However, if you want to add something new to the API, please create an "issue" on github for this first so we can discuss if it should end up in the library before you start implementing it.
-Remember to follow parson's code style and write appropriate tests.
-
-## My other projects
-* [ape](https://github.com/kgabis/ape) - simple programming language implemented in C library
-* [kgflags](https://github.com/kgabis/kgflags) - easy to use command-line flag parsing library   
-* [agnes](https://github.com/kgabis/agnes) - header-only NES emulation library
+Bug fixes are always welcome. For API changes, open an issue first so we can agree on the direction before you invest in an implementation. Match the existing code style and include tests for new behavior.
 
 ## License
-[The MIT License (MIT)](http://opensource.org/licenses/mit-license.php)
+[MIT](LICENSE)
