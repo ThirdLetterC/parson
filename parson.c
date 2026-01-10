@@ -249,6 +249,10 @@ static int json_serialize_string(const char *string, size_t len, char *buf);
     return nullptr;
   }
   size_to_read = (size_t)pos;
+  if (size_to_read == SIZE_MAX) {
+    fclose(fp);
+    return nullptr;
+  }
   rewind(fp);
   file_contents = (char *)parson_calloc(size_to_read + 1, sizeof(char));
   if (file_contents == nullptr) {
@@ -1540,6 +1544,9 @@ JSON_Value *json_parse_string(const char *string) {
 JSON_Value *json_parse_string_with_comments(const char *string) {
   JSON_Value *result = nullptr;
   char *string_mutable_copy = nullptr, *string_mutable_copy_ptr = nullptr;
+  if (string == nullptr) {
+    return nullptr;
+  }
   string_mutable_copy = parson_strdup(string);
   if (string_mutable_copy == nullptr) {
     return nullptr;
@@ -1590,6 +1597,9 @@ JSON_Boolean json_object_get_boolean(const JSON_Object *object,
 
 JSON_Value *json_object_dotget_value(const JSON_Object *object,
                                      const char *name) {
+  if (object == nullptr || name == nullptr) {
+    return nullptr;
+  }
   const char *dot_position = strchr(name, '.');
   if (dot_position == nullptr) {
     return json_object_get_value(object, name);
@@ -2365,7 +2375,8 @@ JSON_Status json_object_dotset_value(JSON_Object *object, const char *name,
   size_t name_len = 0;
   char *name_copy = nullptr;
 
-  if (object == nullptr || name == nullptr || value == nullptr) {
+  if (object == nullptr || name == nullptr || value == nullptr ||
+      value->parent != nullptr) {
     return JSONFailure;
   }
   dot_pos = strchr(name, '.');
