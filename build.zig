@@ -12,19 +12,23 @@ pub fn build(b: *std.Build) void {
         "-Werror",
     };
 
-    const parson = b.addStaticLibrary(.{
-        .name = "parson",
+    const parson_module = b.addModule("parson", .{
+        .root_source_file = null,
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
     });
-    parson.addCSourceFiles(.{
+    parson_module.addCSourceFiles(.{
         .files = &.{"parson.c"},
         .flags = c_warnings,
     });
-    parson.linkLibC();
 
+    const parson = b.addLibrary(.{
+        .name = "parson",
+        .root_module = parson_module,
+    });
+    parson.installHeader(b.path("parson.h"), "parson.h");
     b.installArtifact(parson);
-    b.installHeader("parson.h", "parson.h");
 
     const test_flags = &.{
         "-std=c23",
@@ -35,19 +39,24 @@ pub fn build(b: *std.Build) void {
         "-DTESTS_MAIN",
     };
 
-    const tests = b.addExecutable(.{
-        .name = "parson-tests",
+    const tests_module = b.createModule(.{
+        .root_source_file = null,
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
     });
-    tests.addCSourceFiles(.{
+    tests_module.addCSourceFiles(.{
         .files = &.{"tests.c", "parson.c"},
         .flags = test_flags,
     });
-    tests.linkLibC();
+
+    const tests = b.addExecutable(.{
+        .name = "parson-tests",
+        .root_module = tests_module,
+    });
 
     const run_tests = b.addRunArtifact(tests);
-    run_tests.cwd = b.project_root;
+    run_tests.setCwd(b.path("."));
     if (b.args) |args| {
         run_tests.addArgs(args);
     }
@@ -55,12 +64,13 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run parson tests");
     test_step.dependOn(&run_tests.step);
 
-    const collision_tests = b.addExecutable(.{
-        .name = "parson-tests-collisions",
+    const collision_module = b.createModule(.{
+        .root_source_file = null,
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
     });
-    collision_tests.addCSourceFiles(.{
+    collision_module.addCSourceFiles(.{
         .files = &.{"tests.c", "parson.c"},
         .flags = &.{
             "-std=c23",
@@ -72,10 +82,14 @@ pub fn build(b: *std.Build) void {
             "-DPARSON_FORCE_HASH_COLLISIONS",
         },
     });
-    collision_tests.linkLibC();
+
+    const collision_tests = b.addExecutable(.{
+        .name = "parson-tests-collisions",
+        .root_module = collision_module,
+    });
 
     const run_collision_tests = b.addRunArtifact(collision_tests);
-    run_collision_tests.cwd = b.project_root;
+    run_collision_tests.setCwd(b.path("."));
     if (b.args) |args| {
         run_collision_tests.addArgs(args);
     }

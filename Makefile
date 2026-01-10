@@ -20,5 +20,9 @@ test_hash_collisions: tests.c parson.c
 	./$@
 
 clean:
-	rm -f test *.o
+	rm -f test testcpp test_hash_collisions *.o
 
+fmt: format
+
+format:
+	clang-format -i -style=file *.c *.h
