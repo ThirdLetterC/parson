@@ -30,7 +30,7 @@
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
-#include "parson.h"
+#include "parson/parson.h"
 
 #include <assert.h>
 #include <math.h>

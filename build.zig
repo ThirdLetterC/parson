@@ -19,15 +19,17 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     parson_module.addCSourceFiles(.{
-        .files = &.{"parson.c"},
+        .files = &.{"src/parson.c"},
         .flags = c_warnings,
     });
+    parson_module.addIncludePath(b.path("include"));
+    parson_module.addIncludePath(b.path("include/parson"));
 
     const parson = b.addLibrary(.{
         .name = "parson",
         .root_module = parson_module,
     });
-    parson.installHeader(b.path("parson.h"), "parson.h");
+    parson.installHeader(b.path("include/parson/parson.h"), "parson/parson.h");
     b.installArtifact(parson);
 
     const test_flags = &.{
@@ -46,9 +48,11 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     tests_module.addCSourceFiles(.{
-        .files = &.{"tests.c", "parson.c"},
+        .files = &.{"examples/tests.c", "src/parson.c"},
         .flags = test_flags,
     });
+    tests_module.addIncludePath(b.path("include"));
+    tests_module.addIncludePath(b.path("include/parson"));
 
     const tests = b.addExecutable(.{
         .name = "parson-tests",
@@ -71,7 +75,7 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     collision_module.addCSourceFiles(.{
-        .files = &.{"tests.c", "parson.c"},
+        .files = &.{"examples/tests.c", "src/parson.c"},
         .flags = &.{
             "-std=c23",
             "-Wall",
@@ -82,6 +86,8 @@ pub fn build(b: *std.Build) void {
             "-DPARSON_FORCE_HASH_COLLISIONS",
         },
     });
+    collision_module.addIncludePath(b.path("include"));
+    collision_module.addIncludePath(b.path("include/parson"));
 
     const collision_tests = b.addExecutable(.{
         .name = "parson-tests-collisions",
