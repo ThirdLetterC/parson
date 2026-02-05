@@ -528,7 +528,7 @@ error:
 
 static void json_object_deinit(JSON_Object *object, bool free_keys,
                                bool free_values) {
-  unsigned int i = 0;
+  size_t i = 0;
   for (i = 0; i < object->count; i++) {
     if (free_keys) {
       parson_free(object->names[i]);
@@ -560,7 +560,7 @@ static JSON_Status json_object_grow_and_rehash(JSON_Object *object) {
   JSON_Object new_object;
   char *key = nullptr;
   JSON_Value *value = nullptr;
-  unsigned int i = 0;
+  size_t i = 0;
   size_t new_capacity = max_size(object->cell_capacity * 2, starting_capacity);
   JSON_Status res = json_object_init(&new_object, new_capacity);
   if (res != JSONSuccess) {
@@ -591,7 +591,7 @@ static size_t json_object_get_cell_ix(const JSON_Object *object,
   size_t cell_ix = hash & (object->cell_capacity - 1);
   size_t cell = 0;
   size_t ix = 0;
-  unsigned int i = 0;
+  size_t i = 0;
   unsigned long hash_to_check = 0;
   const char *key_to_check = nullptr;
   size_t key_to_check_len = 0;
@@ -1175,6 +1175,9 @@ error:
   double number = 0;
   errno = 0;
   number = strtod(*string, &end);
+  if (end == *string) {
+    return nullptr;
+  }
   if (errno == ERANGE && (number <= -HUGE_VAL || number >= HUGE_VAL)) {
     return nullptr;
   }
@@ -2676,6 +2679,10 @@ void json_set_allocation_functions(JSON_Malloc_Function malloc_fun,
                                    JSON_Free_Function free_fun) {
   if (malloc_fun == nullptr || free_fun == nullptr) {
     return;
+  }
+  if (parson_float_format != nullptr) {
+    parson_free(parson_float_format);
+    parson_float_format = nullptr;
   }
   parson_malloc = malloc_fun;
   parson_free = free_fun;

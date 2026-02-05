@@ -72,6 +72,7 @@ void test_failing_allocations();
 void test_custom_number_format();
 void test_custom_number_serialization_function();
 void test_object_clear();
+void test_allocation_functions_switch();
 
 void print_commits_info(const char *username, const char *repo);
 void persistence_example();
@@ -144,6 +145,7 @@ int tests_main(int argc, char *argv[]) {
   test_custom_number_format();
   test_custom_number_serialization_function();
   test_object_clear();
+  test_allocation_functions_switch();
 
   printf("Tests failed: %d\n", g_tests_failed);
   printf("Tests passed: %d\n", g_tests_passed);
@@ -427,6 +429,8 @@ void test_suite_3() {
   TEST(json_parse_string("[-07]") == nullptr);
   TEST(json_parse_string("[-007]") == nullptr);
   TEST(json_parse_string("[-07.0]") == nullptr);
+  TEST(json_parse_string("-") == nullptr);
+  TEST(json_parse_string("-x") == nullptr);
   TEST(json_parse_string("[\"\\uDF67\\uD834\"]") ==
        nullptr); /* wrong order surrogate pair */
   TEST(json_parse_string("[1.7976931348623157e309]") == nullptr);
@@ -857,6 +861,14 @@ void test_object_clear() {
     TEST(json_object_get_value(obj, "foo") == nullptr);
     json_value_free(val);
   }
+  TEST(g_malloc_count == 0);
+}
+
+void test_allocation_functions_switch() {
+  g_malloc_count = 0;
+  json_set_float_serialization_format("%.1f");
+  json_set_allocation_functions(malloc, free);
+  json_set_allocation_functions(counted_malloc, counted_free);
   TEST(g_malloc_count == 0);
 }
 
