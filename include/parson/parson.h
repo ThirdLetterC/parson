@@ -23,8 +23,7 @@
  THE SOFTWARE.
 */
 
-#ifndef parson_parson_h
-#define parson_parson_h
+#pragma once
 
 #include <stddef.h> /* size_t */
 #include <stdint.h>
@@ -324,5 +323,3 @@ size_t json_string_len(
     const JSON_Value *value); /* doesn't account for last null character */
 double json_number(const JSON_Value *value);
 JSON_Boolean json_boolean(const JSON_Value *value);
-
-#endif
