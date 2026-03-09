@@ -110,9 +110,10 @@ caller.
 
 - `examples/tests.c` is the in-tree test harness, not a hardened application
   frontend.
+- `examples/security_tests.c` is the dedicated in-tree security regression
+  target for hostile-input behavior and contract checks.
 - `tests/*.txt` are parser and serialization fixtures.
-- There is currently no dedicated fuzzing harness or separate in-tree security
-  regression target.
+- There is currently no dedicated fuzzing harness.
 
 ## Verification
 
@@ -121,9 +122,11 @@ Current validation that exists in this repository:
 - `zig build`
 - `zig build test`
 - `zig build test-collisions`
+- `zig build test-security`
 - `just build`
 - `just test`
 - `just test-collisions`
+- `just test-security`
 
 Additional validation that is reasonable for security-sensitive embedding:
 
@@ -132,8 +135,9 @@ Additional validation that is reasonable for security-sensitive embedding:
 - Add fuzzing coverage for `json_parse_string()`,
   `json_parse_string_with_comments()`, `json_parse_file()`, and the serializer
   entry points.
-- Add regression tests for whole-input consumption, very large objects and
-  arrays, invalid Unicode edge cases, and adversarial custom allocator hooks.
+- Expand the security regression suite with adversarial custom allocator hooks
+  and any application-specific whole-document parsing wrappers you add on top
+  of the library.
 
 ## Deployment Guidance
 

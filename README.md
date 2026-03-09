@@ -19,7 +19,8 @@ Parson is a lightweight [JSON](http://json.org) parser/serializer for modern C23
 - `just install` — install artifacts to `zig-out` (`zig-out/include/parson.h`, `zig-out/lib/libparson.a`).
 - `just test` — run the main test suite.
 - `just test-collisions` — stress hash table collision handling (`PARSON_FORCE_HASH_COLLISIONS`).
-- Without `just`: `zig build`, `zig build install`, `zig build test`, and `zig build test-collisions`.
+- `just test-security` — run the dedicated security regression suite.
+- Without `just`: `zig build`, `zig build install`, `zig build test`, `zig build test-collisions`, and `zig build test-security`.
 - Optional: pass `-Dsanitize=off`, `-Dsanitize=trap`, or `-Dsanitize=full` to Zig builds. Debug defaults to `full`; non-debug defaults to `off`.
 
 ## Using Parson
@@ -38,13 +39,13 @@ Parson is a lightweight [JSON](http://json.org) parser/serializer for modern C23
         "{\"name\":\"Ada\",\"age\":28,"
         "\"skills\":[\"math\",\"code\"]}";
 
-    auto *value = json_parse_string(payload);
+    auto value = json_parse_string(payload);
     if (value == nullptr) {
         return false;
     }
 
-    auto *object = json_value_get_object(value);
-    auto *skills = json_object_get_array(object, "skills");
+    auto object = json_value_get_object(value);
+    auto skills = json_object_get_array(object, "skills");
     if (object == nullptr || skills == nullptr) {
         json_value_free(value);
         return false;
@@ -70,12 +71,12 @@ int main() {
 #include "parson.h"
 
 [[nodiscard]] char *build_profile() {
-    auto *root_value = json_value_init_object();
+    auto root_value = json_value_init_object();
     if (root_value == nullptr) {
         return nullptr;
     }
 
-    auto *root_object = json_value_get_object(root_value);
+    auto root_object = json_value_get_object(root_value);
     json_object_set_string(root_object, "name", "Ada Lovelace");
     json_object_set_number(root_object, "age", 36);
     json_object_dotset_string(root_object, "contact.email",
@@ -84,13 +85,13 @@ int main() {
         root_object, "skills",
         json_parse_string("[\"math\",\"analysis\",\"computing\"]"));
 
-    auto *serialized = json_serialize_to_string_pretty(root_value);
+    auto serialized = json_serialize_to_string_pretty(root_value);
     json_value_free(root_value);
     return serialized;
 }
 
 int main() {
-    auto *json = build_profile();
+    auto json = build_profile();
     if (json != nullptr) {
         puts(json);
         json_free_serialized_string(json);
@@ -101,7 +102,7 @@ int main() {
 ```
 
 ## Contributing
-Bug fixes are always welcome. For API changes, open an issue first so we can agree on the direction before you invest in an implementation. Match the existing code style and include tests for new behavior.
+Bug fixes are always welcome. For API changes, open an issue first so we can agree on the direction before you invest in an implementation. Match the existing code style, include tests for new behavior, and add focused cases to the security regression suite when the change affects parsing, serialization, memory ownership, or global configuration hooks.
 
 ## License
 [MIT](LICENSE)

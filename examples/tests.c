@@ -873,44 +873,10 @@ void test_allocation_functions_switch() {
 }
 
 void print_commits_info(const char *username, const char *repo) {
-  JSON_Value *root_value;
-  JSON_Array *commits;
-  JSON_Object *commit;
-  size_t i;
-
-  char curl_command[512];
-  char cleanup_command[256];
-  char output_filename[] = "commits.json";
-
-  /* it ain't pretty, but it's not a libcurl tutorial */
-  snprintf(curl_command, sizeof curl_command,
-           "curl -s \"https://api.github.com/repos/%s/%s/commits\" > %s",
-           username, repo, output_filename);
-  snprintf(cleanup_command, sizeof cleanup_command, "rm -f %s",
-           output_filename);
-  system(curl_command);
-
-  /* parsing json and validating output */
-  root_value = json_parse_file(get_file_path(output_filename));
-  if (json_value_get_type(root_value) != JSONArray) {
-    system(cleanup_command);
-    return;
-  }
-
-  /* getting array from root value and printing commit info */
-  commits = json_value_get_array(root_value);
-  printf("%-10.10s %-10.10s %s\n", "Date", "SHA", "Author");
-  for (i = 0; i < json_array_get_count(commits); i++) {
-    commit = json_array_get_object(commits, i);
-    printf("%.10s %.10s %s\n",
-           json_object_dotget_string(commit, "commit.author.date"),
-           json_object_get_string(commit, "sha"),
-           json_object_dotget_string(commit, "commit.author.name"));
-  }
-
-  /* cleanup code */
-  json_value_free(root_value);
-  system(cleanup_command);
+  (void)username;
+  (void)repo;
+  puts("print_commits_info() is intentionally left offline in this test "
+       "harness.");
 }
 
 void persistence_example() {
@@ -920,7 +886,12 @@ void persistence_example() {
   const char *name = nullptr;
   if (user_data == nullptr || json_validate(schema, user_data) != JSONSuccess) {
     puts("Enter your name:");
-    scanf("%255s", buf);
+    if (fgets(buf, sizeof(buf), stdin) == nullptr) {
+      json_value_free(schema);
+      json_value_free(user_data);
+      return;
+    }
+    buf[strcspn(buf, "\n")] = '\0';
     user_data = json_value_init_object();
     json_object_set_string(json_object(user_data), "name", buf);
     json_serialize_to_file(user_data, "user_data.json");

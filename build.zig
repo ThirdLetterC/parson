@@ -109,4 +109,39 @@ pub fn build(b: *std.Build) void {
 
     const collision_step = b.step("test-collisions", "Run tests with forced hash collisions");
     collision_step.dependOn(&run_collision_tests.step);
+
+    const security_module = b.createModule(.{
+        .root_source_file = null,
+        .target = target,
+        .optimize = optimize,
+        .sanitize_c = sanitize,
+        .link_libc = true,
+    });
+    security_module.addCSourceFiles(.{
+        .files = &.{"examples/security_tests.c", "src/parson.c"},
+        .flags = &.{
+            "-std=c23",
+            "-Wall",
+            "-Wextra",
+            "-Wpedantic",
+            "-Werror",
+            "-DTESTS_MAIN",
+        },
+    });
+    security_module.addIncludePath(b.path("include"));
+    security_module.addIncludePath(b.path("include/parson"));
+
+    const security_tests = b.addExecutable(.{
+        .name = "parson-security-tests",
+        .root_module = security_module,
+    });
+
+    const run_security_tests = b.addRunArtifact(security_tests);
+    run_security_tests.setCwd(b.path("."));
+    if (b.args) |args| {
+        run_security_tests.addArgs(args);
+    }
+
+    const security_step = b.step("test-security", "Run security regression tests");
+    security_step.dependOn(&run_security_tests.step);
 }
