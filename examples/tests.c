@@ -78,7 +78,8 @@ void print_commits_info(const char *username, const char *repo);
 void persistence_example();
 void serialization_example();
 
-static const char *g_tests_path = "tests";
+static constexpr char default_tests_path[] = "tests";
+static const char *g_tests_path = default_tests_path;
 
 static int g_malloc_count = 0;
 static void *counted_malloc(size_t size);
@@ -650,43 +651,53 @@ void test_suite_7() {
 }
 
 void test_suite_8() {
-  const char *filename = "test_2.txt";
-  const char *temp_filename = "test_2_serialized.txt";
-  JSON_Value *a = nullptr;
-  JSON_Value *b = nullptr;
-  char *buf = nullptr;
-  size_t serialization_size = 0;
-  a = json_parse_file(get_file_path(filename));
+  constexpr char filename[] = "test_2.txt";
+  constexpr char temp_filename[] = "test_2_serialized.txt";
+  auto a = json_parse_file(get_file_path(filename));
+  auto buf = json_serialize_to_string(a);
+  const auto serialization_size = json_serialization_size(a);
+
   TEST(json_serialize_to_file(a, get_file_path(temp_filename)) == JSONSuccess);
-  b = json_parse_file(get_file_path(temp_filename));
+  auto b = json_parse_file(get_file_path(temp_filename));
   TEST(json_value_equals(a, b));
   remove(temp_filename);
-  serialization_size = json_serialization_size(a);
-  buf = json_serialize_to_string(a);
-  TEST((strlen(buf) + 1) == serialization_size);
+  TEST(buf != nullptr);
+  if (buf != nullptr) {
+    TEST((strlen(buf) + 1) == serialization_size);
+  }
+
+  json_free_serialized_string(buf);
+  json_value_free(b);
+  json_value_free(a);
 }
 
 void test_suite_9() {
-  const char *filename = "test_2_pretty.txt";
-  const char *temp_filename = "test_2_serialized_pretty.txt";
-  char *file_contents = nullptr;
-  char *serialized = nullptr;
-  JSON_Value *a = nullptr;
-  JSON_Value *b = nullptr;
-  size_t serialization_size = 0;
-  a = json_parse_file(get_file_path(filename));
+  constexpr char filename[] = "test_2_pretty.txt";
+  constexpr char temp_filename[] = "test_2_serialized_pretty.txt";
+  auto a = json_parse_file(get_file_path(filename));
+
   TEST(json_serialize_to_file_pretty(a, get_file_path(temp_filename)) ==
        JSONSuccess);
-  b = json_parse_file(get_file_path(temp_filename));
+  auto b = json_parse_file(get_file_path(temp_filename));
   TEST(json_value_equals(a, b));
   remove(temp_filename);
-  serialization_size = json_serialization_size_pretty(a);
-  serialized = json_serialize_to_string_pretty(a);
-  TEST((strlen(serialized) + 1) == serialization_size);
+  const auto serialization_size = json_serialization_size_pretty(a);
+  auto serialized = json_serialize_to_string_pretty(a);
+  TEST(serialized != nullptr);
+  if (serialized != nullptr) {
+    TEST((strlen(serialized) + 1) == serialization_size);
+  }
 
-  file_contents = read_file(get_file_path(filename));
+  auto file_contents = read_file(get_file_path(filename));
+  TEST(file_contents != nullptr);
+  if (serialized != nullptr && file_contents != nullptr) {
+    TEST(STREQ(file_contents, serialized));
+  }
 
-  TEST(STREQ(file_contents, serialized));
+  free(file_contents);
+  json_free_serialized_string(serialized);
+  json_value_free(b);
+  json_value_free(a);
 }
 
 void test_suite_10() {
@@ -713,21 +724,25 @@ void test_suite_10() {
 }
 
 void test_suite_11() {
-  const char *array_with_slashes = "[\"a/b/c\"]";
-  const char *array_with_escaped_slashes = "[\"a\\/b\\/c\"]";
-  char *serialized = nullptr;
-  JSON_Value *value = json_parse_string(array_with_slashes);
+  constexpr char array_with_slashes[] = "[\"a/b/c\"]";
+  constexpr char array_with_escaped_slashes[] = "[\"a\\/b\\/c\"]";
+  auto value = json_parse_string(array_with_slashes);
+  TEST(value != nullptr);
 
-  serialized = json_serialize_to_string(value);
+  auto serialized = json_serialize_to_string(value);
   TEST(STREQ(array_with_escaped_slashes, serialized));
+  json_free_serialized_string(serialized);
 
-  json_set_escape_slashes(0);
+  json_set_escape_slashes(false);
   serialized = json_serialize_to_string(value);
   TEST(STREQ(array_with_slashes, serialized));
+  json_free_serialized_string(serialized);
 
-  json_set_escape_slashes(1);
+  json_set_escape_slashes(true);
   serialized = json_serialize_to_string(value);
   TEST(STREQ(array_with_escaped_slashes, serialized));
+  json_free_serialized_string(serialized);
+  json_value_free(value);
 }
 
 void test_memory_leaks() {
@@ -812,10 +827,9 @@ void test_failing_allocations() {
 void test_custom_number_format() {
   g_malloc_count = 0;
   {
-    char *serialized = nullptr;
-    JSON_Value *val = json_value_init_number(0.6);
+    auto val = json_value_init_number(0.6);
     json_set_float_serialization_format("%.1f");
-    serialized = json_serialize_to_string(val);
+    auto serialized = json_serialize_to_string(val);
     json_set_float_serialization_format(nullptr);
     TEST(STREQ(serialized, "0.6"));
     json_free_serialized_string(serialized);
@@ -828,8 +842,9 @@ static int custom_serialization_func_called = 0;
 static int custom_serialization_func(double num, char *buf) {
   char num_buf[32];
   custom_serialization_func_called = 1;
-  if (buf == nullptr)
+  if (buf == nullptr) {
     buf = num_buf;
+  }
   return snprintf(buf, sizeof num_buf, "%.1f", num);
 }
 
@@ -838,10 +853,9 @@ void test_custom_number_serialization_function() {
   {
     /* We just test that custom_serialization_func() gets called, not it's
      * performance */
-    char *serialized = nullptr;
-    JSON_Value *val = json_value_init_number(0.6);
+    auto val = json_value_init_number(0.6);
     json_set_number_serialization_function(custom_serialization_func);
-    serialized = json_serialize_to_string(val);
+    auto serialized = json_serialize_to_string(val);
     TEST(STREQ(serialized, "0.6"));
     TEST(custom_serialization_func_called);
     json_set_number_serialization_function(nullptr);
@@ -854,8 +868,8 @@ void test_custom_number_serialization_function() {
 void test_object_clear() {
   g_malloc_count = 0;
   {
-    JSON_Value *val = json_value_init_object();
-    JSON_Object *obj = json_value_get_object(val);
+    auto val = json_value_init_object();
+    auto obj = json_value_get_object(val);
     json_object_set_string(obj, "foo", "bar");
     json_object_clear(obj);
     TEST(json_object_get_value(obj, "foo") == nullptr);
@@ -872,18 +886,21 @@ void test_allocation_functions_switch() {
   TEST(g_malloc_count == 0);
 }
 
-void print_commits_info(const char *username, const char *repo) {
-  (void)username;
-  (void)repo;
+void print_commits_info([[maybe_unused]] const char *username,
+                        [[maybe_unused]] const char *repo) {
   puts("print_commits_info() is intentionally left offline in this test "
        "harness.");
 }
 
 void persistence_example() {
-  JSON_Value *schema = json_parse_string("{\"name\":\"\"}");
-  JSON_Value *user_data = json_parse_file(get_file_path("user_data.json"));
+  auto schema = json_parse_string("{\"name\":\"\"}");
+  auto user_data = json_parse_file(get_file_path("user_data.json"));
   char buf[256];
   const char *name = nullptr;
+  if (schema == nullptr) {
+    json_value_free(user_data);
+    return;
+  }
   if (user_data == nullptr || json_validate(schema, user_data) != JSONSuccess) {
     puts("Enter your name:");
     if (fgets(buf, sizeof(buf), stdin) == nullptr) {
@@ -893,27 +910,50 @@ void persistence_example() {
     }
     buf[strcspn(buf, "\n")] = '\0';
     user_data = json_value_init_object();
-    json_object_set_string(json_object(user_data), "name", buf);
-    json_serialize_to_file(user_data, "user_data.json");
+    if (user_data == nullptr ||
+        json_object_set_string(json_object(user_data), "name", buf) !=
+            JSONSuccess ||
+        json_serialize_to_file(user_data, "user_data.json") != JSONSuccess) {
+      json_value_free(schema);
+      json_value_free(user_data);
+      return;
+    }
   }
   name = json_object_get_string(json_object(user_data), "name");
-  printf("Hello, %s.", name);
+  if (name != nullptr) {
+    printf("Hello, %s.", name);
+  }
   json_value_free(schema);
   json_value_free(user_data);
-  return;
 }
 
 void serialization_example() {
-  JSON_Value *root_value = json_value_init_object();
-  JSON_Object *root_object = json_value_get_object(root_value);
-  char *serialized_string = nullptr;
-  json_object_set_string(root_object, "name", "John Smith");
-  json_object_set_number(root_object, "age", 25);
-  json_object_dotset_string(root_object, "address.city", "Cupertino");
-  json_object_dotset_value(
-      root_object, "contact.emails",
-      json_parse_string("[\"email@example.com\", \"email2@example.com\"]"));
-  serialized_string = json_serialize_to_string_pretty(root_value);
+  auto root_value = json_value_init_object();
+  if (root_value == nullptr) {
+    return;
+  }
+
+  auto root_object = json_value_get_object(root_value);
+  auto emails = json_parse_string("[\"email@example.com\", "
+                                  "\"email2@example.com\"]");
+  if (root_object == nullptr || emails == nullptr ||
+      json_object_set_string(root_object, "name", "John Smith") != JSONSuccess ||
+      json_object_set_number(root_object, "age", 25) != JSONSuccess ||
+      json_object_dotset_string(root_object, "address.city", "Cupertino") !=
+          JSONSuccess ||
+      json_object_dotset_value(root_object, "contact.emails", emails) !=
+          JSONSuccess) {
+    json_value_free(emails);
+    json_value_free(root_value);
+    return;
+  }
+
+  auto serialized_string = json_serialize_to_string_pretty(root_value);
+  if (serialized_string == nullptr) {
+    json_value_free(root_value);
+    return;
+  }
+
   puts(serialized_string);
   json_free_serialized_string(serialized_string);
   json_value_free(root_value);
@@ -969,7 +1009,7 @@ const char *get_file_path(const char *filename) {
 }
 
 static void *counted_malloc(size_t size) {
-  void *res = calloc(1, size);
+  auto res = calloc(1, size);
   if (res != nullptr) {
     g_malloc_count++;
   }
@@ -984,13 +1024,12 @@ static void counted_free(void *ptr) {
 }
 
 static void *failing_malloc(size_t size) {
-  void *res = nullptr;
   if (g_failing_alloc.should_fail &&
       g_failing_alloc.total_count >= g_failing_alloc.allocation_to_fail) {
     g_failing_alloc.has_failed = true;
     return nullptr;
   }
-  res = calloc(1, size);
+  auto res = calloc(1, size);
   if (res != nullptr) {
     g_failing_alloc.total_count++;
     g_failing_alloc.alloc_count++;

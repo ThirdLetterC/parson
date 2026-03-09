@@ -89,18 +89,20 @@ void json_set_float_serialization_format(const char *format);
 void json_set_number_serialization_function(
     JSON_Number_Serialization_Function fun);
 
-/* Parses first JSON value in a file, returns nullptr in case of error */
+/* Parses first JSON value in a file.
+ * Returns an owning value or nullptr on error. Free with json_value_free(). */
 [[nodiscard]] JSON_Value *json_parse_file(const char *filename);
 
 /* Parses first JSON value in a file and ignores comments (/ * * / and //),
-   returns nullptr in case of error */
+ * returns an owning value or nullptr on error. Free with json_value_free(). */
 [[nodiscard]] JSON_Value *json_parse_file_with_comments(const char *filename);
 
-/*  Parses first JSON value in a string, returns nullptr in case of error */
+/* Parses first JSON value in a string.
+ * Returns an owning value or nullptr on error. Free with json_value_free(). */
 [[nodiscard]] JSON_Value *json_parse_string(const char *string);
 
 /*  Parses first JSON value in a string and ignores comments (/ * * / and //),
-    returns nullptr in case of error */
+ *  returns an owning value or nullptr on error. Free with json_value_free(). */
 [[nodiscard]] JSON_Value *json_parse_string_with_comments(const char *string);
 
 /* Serialization */
@@ -109,6 +111,8 @@ JSON_Status json_serialize_to_buffer(const JSON_Value *value, char *buf,
                                      size_t buf_size_in_bytes);
 JSON_Status json_serialize_to_file(const JSON_Value *value,
                                    const char *filename);
+/* Returns an owning string or nullptr on error.
+ * Free with json_free_serialized_string(). */
 [[nodiscard]] char *json_serialize_to_string(const JSON_Value *value);
 
 /* Pretty serialization */
@@ -118,11 +122,14 @@ JSON_Status json_serialize_to_buffer_pretty(const JSON_Value *value, char *buf,
                                             size_t buf_size_in_bytes);
 JSON_Status json_serialize_to_file_pretty(const JSON_Value *value,
                                           const char *filename);
+/* Returns an owning string or nullptr on error.
+ * Free with json_free_serialized_string(). */
 [[nodiscard]] char *json_serialize_to_string_pretty(const JSON_Value *value);
 
+/* Frees an owning string returned by json_serialize_to_string() or
+ * json_serialize_to_string_pretty(). */
 void json_free_serialized_string(
-    char *string); /* frees string from json_serialize_to_string and
-                      json_serialize_to_string_pretty */
+    char *string);
 
 /* Comparing */
 bool json_value_equals(const JSON_Value *a, const JSON_Value *b);
@@ -290,6 +297,7 @@ JSON_Status json_array_append_null(JSON_Array *array);
 /*
  *JSON Value
  */
+/* Constructors return owning values. Free with json_value_free(). */
 [[nodiscard]] JSON_Value *json_value_init_object();
 [[nodiscard]] JSON_Value *json_value_init_array();
 [[nodiscard]] JSON_Value *
@@ -301,6 +309,7 @@ json_value_init_string(const char *string); /* copies passed string */
 [[nodiscard]] JSON_Value *json_value_init_number(double number);
 [[nodiscard]] JSON_Value *json_value_init_boolean(bool boolean);
 [[nodiscard]] JSON_Value *json_value_init_null();
+/* Returns an owning deep copy or nullptr on error. */
 [[nodiscard]] JSON_Value *json_value_deep_copy(const JSON_Value *value);
 void json_value_free(JSON_Value *value);
 

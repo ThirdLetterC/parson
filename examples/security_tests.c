@@ -20,6 +20,7 @@
 
 static int g_tests_passed;
 static int g_tests_failed;
+static constexpr size_t security_item_count = 4'096;
 
 [[nodiscard]] static JSON_Value *build_large_security_fixture();
 [[nodiscard]] static char *serialize_fixture(const JSON_Value *value);
@@ -35,9 +36,8 @@ static void test_bounded_serialization_contract();
 static void test_comment_parser_regressions();
 static void test_custom_number_serialization_failures();
 
-static int failing_number_serialization(double number, char *buf) {
-  (void)number;
-  (void)buf;
+static int failing_number_serialization([[maybe_unused]] double number,
+                                        [[maybe_unused]] char *buf) {
   return -1;
 }
 
@@ -100,7 +100,6 @@ static void test_large_fixture_round_trip() {
     auto root_object = json_value_get_object(fixture);
     auto map = json_object_get_object(root_object, "map");
     auto items = json_object_get_array(root_object, "items");
-    constexpr size_t security_item_count = 4'096;
 
     TEST(json_object_get_count(map) == security_item_count);
     TEST(json_array_get_count(items) == security_item_count);
@@ -184,7 +183,6 @@ static void test_custom_number_serialization_failures() {
 
   auto map = json_object_get_object(root_object, "map");
   auto items = json_object_get_array(root_object, "items");
-  constexpr size_t security_item_count = 4'096;
 
   if (!set_large_object_members(map, security_item_count) ||
       !append_large_array_members(items, security_item_count)) {
