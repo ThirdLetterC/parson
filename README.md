@@ -20,6 +20,7 @@ Parson is a lightweight [JSON](http://json.org) parser/serializer for modern C23
 - `just test` — run the main test suite.
 - `just test-collisions` — stress hash table collision handling (`PARSON_FORCE_HASH_COLLISIONS`).
 - Without `just`: `zig build`, `zig build install`, `zig build test`, and `zig build test-collisions`.
+- Optional: pass `-Dsanitize=off`, `-Dsanitize=trap`, or `-Dsanitize=full` to Zig builds. Debug defaults to `full`; non-debug defaults to `off`.
 
 ## Using Parson
 - Copy `parson.c` and `parson.h` into your project and compile them with your own flags, or link against `zig-out/lib/libparson.a` while adding `zig-out/include` to the include path.

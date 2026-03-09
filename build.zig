@@ -3,6 +3,10 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const sanitize: std.zig.SanitizeC = b.option(std.zig.SanitizeC, "sanitize", "Set C sanitizer mode: off, trap, or full") orelse if (optimize == .Debug)
+        std.zig.SanitizeC.full
+    else
+        .off;
 
     const c_warnings = &.{
         "-std=c23",
@@ -16,6 +20,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = null,
         .target = target,
         .optimize = optimize,
+        .sanitize_c = sanitize,
         .link_libc = true,
     });
     parson_module.addCSourceFiles(.{
@@ -45,6 +50,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = null,
         .target = target,
         .optimize = optimize,
+        .sanitize_c = sanitize,
         .link_libc = true,
     });
     tests_module.addCSourceFiles(.{
@@ -72,6 +78,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = null,
         .target = target,
         .optimize = optimize,
+        .sanitize_c = sanitize,
         .link_libc = true,
     });
     collision_module.addCSourceFiles(.{
